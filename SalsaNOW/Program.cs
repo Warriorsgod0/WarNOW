@@ -130,17 +130,15 @@ namespace SalsaNOW
         }
         static async Task AppsInstall()
 {
-    // The URL for official apps (currently returns 404 error on server side)
     string jsonUrl = "https://salsanowfiles.work/jsons/apps.json";
+    // Define local paths needed for the fallback local file check
+    string exeDirectory = Path.GetDirectoryName(System.Reflection.Assembly.GetExecutingAssembly().Location);
+    string localJsonPath = Path.Combine(exeDirectory, "custom_apps.json");
     string salsaNowIniPath = Path.Combine(globalDirectory, "SalsaNOWConfig.ini");
 
     try
     {
-        // Ensure directory exists before reading (using System.IO.File explicitly)
-        if (!System.IO.File.Exists(salsaNowIniPath)) 
-        { 
-            Console.WriteLine("[!] Config file missing."); 
-        }
+        var salsaNowIniOpen = System.IO.File.ReadAllLines(salsaNowIniPath);
 
         List<Apps> apps = new List<Apps>();
 
@@ -157,14 +155,13 @@ namespace SalsaNOW
         catch (Exception ex)
         {
             Console.WriteLine("[!] Could not load official apps: " + ex.Message);
-            // This is the 404 error you see in the console log
         }
 
         // --- STEP 2: Load custom apps from INSIDE the EXE (Embedded Resource) ---
+        bool loadedInternal = false;
         try
         {
             var assembly = System.Reflection.Assembly.GetExecutingAssembly();
-            // Automatically finds the embedded file regardless of your namespace/folder structure
             string resourceName = assembly.GetManifestResourceNames()
                 .FirstOrDefault(r => r.EndsWith("custom_apps.json"));
 
@@ -179,14 +176,27 @@ namespace SalsaNOW
                     {
                         apps.AddRange(internalApps);
                         Console.WriteLine($"[+] Loaded {internalApps.Count} apps from inside EXE");
+                        loadedInternal = true;
                     }
                 }
             }
         }
         catch (Exception ex) { Console.WriteLine("[!] Error reading internal JSON: " + ex.Message); }
 
+        // --- STEP 3: Fallback to local file if internal wasn't used ---
+        if (!loadedInternal && System.IO.File.Exists(localJsonPath))
+        {
+            try
+            {
+                string customJson = System.IO.File.ReadAllText(localJsonPath);
+                List<Apps> customApps = JsonConvert.DeserializeObject<List<Apps>>(customJson);
+                apps.AddRange(customApps);
+                Console.WriteLine($"[+] Loaded {customApps.Count} apps from local JSON file");
+            }
+            catch (Exception ex) { Console.WriteLine("[!] Local JSON error: " + ex.Message); }
+        }
 
-        // --- STEP 3: Installation Logic ---
+        // --- STEP 4: Installation Logic (All subsequent File calls use System.IO.File explicitly) ---
         var tasks = apps.Select(app => Task.Run(async () =>
         {
             using (WebClient webClient = new WebClient())
@@ -206,7 +216,6 @@ namespace SalsaNOW
                         await webClient.DownloadFileTaskAsync(new Uri(app.url), $"{zipFile}.zip");
                         ZipFile.ExtractToDirectory($"{zipFile}.zip", zipFile);
 
-                        // Fixed ambiguity by using System.IO.File explicitly
                         if (!System.IO.File.Exists(Path.Combine(backupShortcutsDir, $"{app.name}.lnk")) && 
                             !System.IO.File.Exists(Path.Combine(shortcutsDir, $"{app.name}.lnk")))
                         {
@@ -216,7 +225,7 @@ namespace SalsaNOW
                             shortcut.WorkingDirectory = Path.GetDirectoryName(appZipPath);
                             shortcut.Save();
                         }
-                        System.IO.File.Delete($"{zipFile}.zip"); // Fixed ambiguity
+                        System.IO.File.Delete($"{zipFile}.zip");
                         if (app.run == "true") Process.Start(appZipPath);
                     }
                     else if (app.fileExtension == "exe")
@@ -224,7 +233,6 @@ namespace SalsaNOW
                         Console.WriteLine("[+] Installing " + app.name);
                         await webClient.DownloadFileTaskAsync(new Uri(app.url), appExePath);
 
-                        // Fixed ambiguity
                         if (!System.IO.File.Exists(Path.Combine(backupShortcutsDir, $"{app.name}.lnk")) && 
                             !System.IO.File.Exists(Path.Combine(shortcutsDir, $"{app.name}.lnk")))
                         {
