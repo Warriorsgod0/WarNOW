@@ -149,12 +149,11 @@ namespace SalsaNOW
         }
         catch (Exception ex) { Console.WriteLine("[!] Could not load official apps: " + ex.Message); }
 
-        // 2. Load custom apps from INSIDE the EXE (SalsaNOW/custom_apps.json)
+        // 2. Load custom apps from INSIDE the EXE (Embedded Resource)
         try
         {
             var assembly = System.Reflection.Assembly.GetExecutingAssembly();
-            
-            // This search handles subfolders like "SalsaNOW/" automatically
+            // Automatically finds the embedded file regardless of your namespace
             string resourceName = assembly.GetManifestResourceNames()
                 .FirstOrDefault(r => r.EndsWith("custom_apps.json"));
 
@@ -174,7 +173,7 @@ namespace SalsaNOW
             }
             else
             {
-                Console.WriteLine("[!] Could not find custom_apps.json inside the EXE resources.");
+                Console.WriteLine("[!] custom_apps.json not found inside EXE. Ensure Build Action is 'Embedded Resource'.");
             }
         }
         catch (Exception ex) { Console.WriteLine("[!] Error reading internal JSON: " + ex.Message); }
@@ -199,8 +198,9 @@ namespace SalsaNOW
                         await webClient.DownloadFileTaskAsync(new Uri(app.url), $"{zipFile}.zip");
                         ZipFile.ExtractToDirectory($"{zipFile}.zip", zipFile);
 
-                        if (!File.Exists(Path.Combine(backupShortcutsDir, $"{app.name}.lnk")) && 
-                            !File.Exists(Path.Combine(shortcutsDir, $"{app.name}.lnk")))
+                        // FIX: Use System.IO.File explicitly
+                        if (!System.IO.File.Exists(Path.Combine(backupShortcutsDir, $"{app.name}.lnk")) && 
+                            !System.IO.File.Exists(Path.Combine(shortcutsDir, $"{app.name}.lnk")))
                         {
                             WshShell shell = new WshShell();
                             IWshShortcut shortcut = (IWshShortcut)shell.CreateShortcut(desktopPath);
@@ -208,7 +208,8 @@ namespace SalsaNOW
                             shortcut.WorkingDirectory = Path.GetDirectoryName(appZipPath);
                             shortcut.Save();
                         }
-                        File.Delete($"{zipFile}.zip");
+                        // FIX: Use System.IO.File explicitly
+                        System.IO.File.Delete($"{zipFile}.zip");
                         if (app.run == "true") Process.Start(appZipPath);
                     }
                     else if (app.fileExtension == "exe")
@@ -216,8 +217,9 @@ namespace SalsaNOW
                         Console.WriteLine("[+] Installing " + app.name);
                         await webClient.DownloadFileTaskAsync(new Uri(app.url), appExePath);
 
-                        if (!File.Exists(Path.Combine(backupShortcutsDir, $"{app.name}.lnk")) && 
-                            !File.Exists(Path.Combine(shortcutsDir, $"{app.name}.lnk")))
+                        // FIX: Use System.IO.File explicitly
+                        if (!System.IO.File.Exists(Path.Combine(backupShortcutsDir, $"{app.name}.lnk")) && 
+                            !System.IO.File.Exists(Path.Combine(shortcutsDir, $"{app.name}.lnk")))
                         {
                             WshShell shell = new WshShell();
                             IWshShortcut shortcut = (IWshShortcut)shell.CreateShortcut(desktopPath);
