@@ -135,44 +135,54 @@ namespace SalsaNOW
 
     try
     {
-        // --- Old Code ---
-        var salsaNowIniOpen = System.IO.File.ReadAllLines($"{globalDirectory}\\SalsaNOWConfig.ini");
+        var salsaNowIniOpen = System.IO.File.ReadAllLines(salsaNowIniPath);
 
         WebClient wc = new WebClient();
-        string json = await wc.DownloadStringTaskAsync(jsonUrl);
-        List<Apps> apps = JsonConvert.DeserializeObject<List<Apps>>(json);
+        List<Apps> apps = new List<Apps>();
 
-        // --- New Code: Adding Custom Apps from the EXE ---
+        // ===== LOAD SERVER JSON (OPTIONAL, 404 SAFE) =====
+        try
+        {
+            string json = await wc.DownloadStringTaskAsync(jsonUrl);
+            List<Apps> serverApps = JsonConvert.DeserializeObject<List<Apps>>(json);
+            if (serverApps != null)
+                apps.AddRange(serverApps);
+        }
+        catch (WebException)
+        {
+            Console.WriteLine("[!] Server apps.json not found (404). Continuing...");
+        }
+
+        // ===== LOAD EMBEDDED JSON FROM EXE =====
         try
         {
             var assembly = System.Reflection.Assembly.GetExecutingAssembly();
             string resourceName = assembly.GetManifestResourceNames()
-                .FirstOrDefault(r => r.EndsWith("custom_apps.json")); // Change "custom_apps.json" to your actual embedded file name
+                .FirstOrDefault(r => r.EndsWith("custom_apps.json"));
 
             if (!string.IsNullOrEmpty(resourceName))
             {
-                using (Stream stream = assembly.GetManifestResourceStream(resourceName))
-                using (StreamReader reader = new StreamReader(stream))
+                using (var stream = assembly.GetManifestResourceStream(resourceName))
+                using (var reader = new StreamReader(stream))
                 {
-                    string customJson = await reader.ReadToEndAsync();
-                    List<Apps> internalApps = JsonConvert.DeserializeObject<List<Apps>>(customJson);
-                    if (internalApps != null)
-                    {
-                        apps.AddRange(internalApps);  // Add the custom apps to the official apps list
-                        Console.WriteLine($"[+] Loaded {internalApps.Count} custom apps from inside EXE");
-                    }
+                    string embeddedJson = await reader.ReadToEndAsync();
+                    List<Apps> embeddedApps = JsonConvert.DeserializeObject<List<Apps>>(embeddedJson);
+                    if (embeddedApps != null)
+                        apps.AddRange(embeddedApps);
                 }
+
+                Console.WriteLine("[+] Loaded embedded apps from EXE");
             }
         }
         catch (Exception ex)
         {
-            Console.WriteLine("[!] Error reading internal JSON: " + ex.Message);
+            Console.WriteLine("[!] Failed to load embedded apps: " + ex.Message);
         }
 
-        // --- Continue Original Code to Install Apps ---
+        // ===== ORIGINAL INSTALL LOGIC (UNCHANGED) =====
         var tasks = apps.Select(app => Task.Run(async () =>
         {
-            WebClient webClient = new WebClient(); // new instance per app
+            WebClient webClient = new WebClient();
 
             string desktopPath = Environment.GetFolderPath(Environment.SpecialFolder.Desktop) + $"\\{app.name}.lnk";
             string zipFile = Path.Combine(globalDirectory, app.name);
@@ -188,28 +198,22 @@ namespace SalsaNOW
                     Console.WriteLine("[+] Installing " + app.name);
 
                     await webClient.DownloadFileTaskAsync(new Uri(app.url), $"{zipFile}.zip");
-
                     ZipFile.ExtractToDirectory($"{zipFile}.zip", zipFile);
 
-                    if (!System.IO.File.Exists($"{backupShortcutsDir}\\{app.name}.lnk"))
+                    if (!System.IO.File.Exists($"{backupShortcutsDir}\\{app.name}.lnk") &&
+                        !System.IO.File.Exists($"{shortcutsDir}\\{app.name}.lnk"))
                     {
-                        if (!System.IO.File.Exists($"{shortcutsDir}\\{app.name}.lnk"))
-                        {
-                            WshShell shell = new WshShell();
-                            IWshShortcut shortcut = (IWshShortcut)shell.CreateShortcut(desktopPath);
-                            shortcut.TargetPath = appZipPath;
-                            shortcut.WorkingDirectory = System.IO.Path.GetDirectoryName(appZipPath);
-
-                            shortcut.Save();
-                        }
+                        WshShell shell = new WshShell();
+                        IWshShortcut shortcut = (IWshShortcut)shell.CreateShortcut(desktopPath);
+                        shortcut.TargetPath = appZipPath;
+                        shortcut.WorkingDirectory = System.IO.Path.GetDirectoryName(appZipPath);
+                        shortcut.Save();
                     }
 
                     System.IO.File.Delete($"{zipFile}.zip");
 
                     if (app.run == "true")
-                    {
                         Process.Start(appZipPath);
-                    }
                 }
 
                 if (app.fileExtension == "exe")
@@ -218,23 +222,18 @@ namespace SalsaNOW
 
                     await webClient.DownloadFileTaskAsync(new Uri(app.url), appExePath);
 
-                    if (!System.IO.File.Exists($"{backupShortcutsDir}\\{app.name}.lnk"))
+                    if (!System.IO.File.Exists($"{backupShortcutsDir}\\{app.name}.lnk") &&
+                        !System.IO.File.Exists($"{shortcutsDir}\\{app.name}.lnk"))
                     {
-                        if (!System.IO.File.Exists($"{shortcutsDir}\\{app.name}.lnk"))
-                        {
-                            WshShell shell = new WshShell();
-                            IWshShortcut shortcut = (IWshShortcut)shell.CreateShortcut(desktopPath);
-                            shortcut.TargetPath = appExePath;
-                            shortcut.WorkingDirectory = System.IO.Path.GetDirectoryName(globalDirectory);
-
-                            shortcut.Save();
-                        }
+                        WshShell shell = new WshShell();
+                        IWshShortcut shortcut = (IWshShortcut)shell.CreateShortcut(desktopPath);
+                        shortcut.TargetPath = appExePath;
+                        shortcut.WorkingDirectory = System.IO.Path.GetDirectoryName(globalDirectory);
+                        shortcut.Save();
                     }
 
                     if (app.run == "true")
-                    {
                         Process.Start(appExePath);
-                    }
                 }
             }
             else
@@ -243,31 +242,23 @@ namespace SalsaNOW
 
                 if (app.fileExtension == "zip")
                 {
-                    if (!System.IO.File.Exists($"{backupShortcutsDir}\\{app.name}.lnk"))
+                    if (!System.IO.File.Exists($"{backupShortcutsDir}\\{app.name}.lnk") &&
+                        !System.IO.File.Exists($"{shortcutsDir}\\{app.name}.lnk"))
                     {
-                        if (!System.IO.File.Exists($"{shortcutsDir}\\{app.name}.lnk"))
-                        {
-                            WshShell shell = new WshShell();
-                            IWshShortcut shortcut = (IWshShortcut)shell.CreateShortcut(desktopPath);
-                            shortcut.TargetPath = appZipPath;
-                            shortcut.WorkingDirectory = System.IO.Path.GetDirectoryName(globalDirectory);
-
-                            shortcut.Save();
-                        }
+                        WshShell shell = new WshShell();
+                        IWshShortcut shortcut = (IWshShortcut)shell.CreateShortcut(desktopPath);
+                        shortcut.TargetPath = appZipPath;
+                        shortcut.WorkingDirectory = System.IO.Path.GetDirectoryName(globalDirectory);
+                        shortcut.Save();
                     }
 
                     if (app.run == "true")
-                    {
                         Process.Start(appZipPath);
-                    }
                 }
             }
         })).ToList();
 
-        // Wait for all tasks to finish
         await Task.WhenAll(tasks);
-
-        return;
     }
     catch (Exception ex)
     {
