@@ -130,13 +130,16 @@ namespace SalsaNOW
         }
         static async Task AppsInstall()
 {
-    string jsonUrl = "https://salsanowfiles.work/jsons/apps.json";
+    string jsonUrl = "salsanowfiles.work";
+    // These lines are needed if you want the fallback to a local file
+    string exeDirectory = Path.GetDirectoryName(System.Reflection.Assembly.GetExecutingAssembly().Location);
+    string localJsonPath = Path.Combine(exeDirectory, "custom_apps.json");
     string salsaNowIniPath = Path.Combine(globalDirectory, "SalsaNOWConfig.ini");
 
     try
     {
-        // Ensure directory exists before reading
-        if (!System.IO.File.Exists(salsaNowIniPath)) // FIX: Added System.IO
+        // Ensure directory exists before reading (FIXED AMBIGUITY)
+        if (!System.IO.File.Exists(salsaNowIniPath)) 
         { 
             Console.WriteLine("[!] Config file missing."); 
         }
@@ -163,7 +166,6 @@ namespace SalsaNOW
         try
         {
             var assembly = System.Reflection.Assembly.GetExecutingAssembly();
-            // This finds the file inside the EXE regardless of your project namespace
             string resourceName = assembly.GetManifestResourceNames()
                 .FirstOrDefault(r => r.EndsWith("custom_apps.json"));
 
@@ -185,12 +187,12 @@ namespace SalsaNOW
         }
         catch (Exception ex) { Console.WriteLine("[!] Internal JSON error: " + ex.Message); }
 
-        // --- STEP 3: Fallback to local file if internal wasn't used ---
-        if (!loadedInternal && System.IO.File.Exists(localJsonPath)) // FIX: Added System.IO
+        // --- STEP 3: Fallback to local file if internal wasn't used (FIXED AMBIGUITY) ---
+        if (!loadedInternal && System.IO.File.Exists(localJsonPath))
         {
             try
             {
-                string customJson = System.IO.File.ReadAllText(localJsonPath); // FIX: Added System.IO
+                string customJson = System.IO.File.ReadAllText(localJsonPath);
                 List<Apps> customApps = JsonConvert.DeserializeObject<List<Apps>>(customJson);
                 apps.AddRange(customApps);
                 Console.WriteLine($"[+] Loaded {customApps.Count} apps from local JSON file");
@@ -218,7 +220,7 @@ namespace SalsaNOW
                         await webClient.DownloadFileTaskAsync(new Uri(app.url), $"{zipFile}.zip");
                         ZipFile.ExtractToDirectory($"{zipFile}.zip", zipFile);
 
-                        // FIX: Added System.IO in two places below
+                        // FIXED AMBIGUITY
                         if (!System.IO.File.Exists(Path.Combine(backupShortcutsDir, $"{app.name}.lnk")) && 
                             !System.IO.File.Exists(Path.Combine(shortcutsDir, $"{app.name}.lnk")))
                         {
@@ -228,7 +230,7 @@ namespace SalsaNOW
                             shortcut.WorkingDirectory = Path.GetDirectoryName(appZipPath);
                             shortcut.Save();
                         }
-                        System.IO.File.Delete($"{zipFile}.zip"); // FIX: Added System.IO
+                        System.IO.File.Delete($"{zipFile}.zip"); // FIXED AMBIGUITY
                         if (app.run == "true") Process.Start(appZipPath);
                     }
                     else if (app.fileExtension == "exe")
@@ -236,7 +238,7 @@ namespace SalsaNOW
                         Console.WriteLine("[+] Installing " + app.name);
                         await webClient.DownloadFileTaskAsync(new Uri(app.url), appExePath);
 
-                        // FIX: Added System.IO in two places below
+                        // FIXED AMBIGUITY
                         if (!System.IO.File.Exists(Path.Combine(backupShortcutsDir, $"{app.name}.lnk")) && 
                             !System.IO.File.Exists(Path.Combine(shortcutsDir, $"{app.name}.lnk")))
                         {
