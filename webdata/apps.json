@@ -1,1 +1,14 @@
-
+  {
+    "name": "OBS Studio",
+    "fileExtension": "zip",
+    "exeName": "obs64.exe",
+    "run": "false",
+    "url": "https://cdn-fastly.obsproject.com/downloads/OBS-Studio-32.0.4-Windows-x64.zip"
+  },
+  {
+    "name": "Prism Launcher",
+    "fileExtension": "zip",
+    "exeName": "PrismLauncher.exe",
+    "run": "false",
+    "url": "https://github.com/PrismLauncher/PrismLauncher/releases/download/9.4/PrismLauncher-Windows-MinGW-w64-Portable-9.4.zip"
+  }
