@@ -130,148 +130,113 @@ namespace SalsaNOW
         }
         static async Task AppsInstall()
 {
-    string jsonUrl = "https://salsanowfiles.work/jsons/apps.json";
-    string exeDirectory = Path.GetDirectoryName(System.Reflection.Assembly.GetExecutingAssembly().Location);
-    string localJsonPath = Path.Combine(exeDirectory, "custom_apps.json");
-    string salsaNowIniPath = $"{globalDirectory}\\SalsaNOWConfig.ini";
+    string jsonUrl = "salsanowfiles.work";
+    string salsaNowIniPath = Path.Combine(globalDirectory, "SalsaNOWConfig.ini");
 
     try
     {
-        var salsaNowIniOpen = System.IO.File.ReadAllLines($"{globalDirectory}\\SalsaNOWConfig.ini");
         List<Apps> apps = new List<Apps>();
 
-        // Load official apps from server
+        // 1. Load official apps from server
         try
         {
-            WebClient wc = new WebClient();
-            string json = await wc.DownloadStringTaskAsync(jsonUrl);
-            apps = JsonConvert.DeserializeObject<List<Apps>>(json);
-            Console.WriteLine("[+] Loaded official apps from server");
-        }
-        catch (Exception ex)
-        {
-            Console.WriteLine("[!] Could not load official apps: " + ex.Message);
-        }
-
-        // Load custom apps from local JSON file
-        if (System.IO.File.Exists(localJsonPath))
-        {
-            try
+            using (WebClient wc = new WebClient())
             {
-                Console.WriteLine($"[+] Found custom_apps.json at: {localJsonPath}");
-                string customJson = System.IO.File.ReadAllText(localJsonPath);
-                List<Apps> customApps = JsonConvert.DeserializeObject<List<Apps>>(customJson);
-                apps.AddRange(customApps);
-                Console.WriteLine($"[+] Loaded {customApps.Count} custom apps from local file");
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine("[!] Error loading custom apps: " + ex.Message);
+                string json = await wc.DownloadStringTaskAsync(jsonUrl);
+                apps = JsonConvert.DeserializeObject<List<Apps>>(json);
+                Console.WriteLine("[+] Loaded official apps from server");
             }
         }
-        else
+        catch (Exception ex) { Console.WriteLine("[!] Could not load official apps: " + ex.Message); }
+
+        // 2. Load custom apps from INSIDE the EXE (SalsaNOW/custom_apps.json)
+        try
         {
-            Console.WriteLine($"[!] No custom_apps.json found at: {localJsonPath}");
-            Console.WriteLine("[!] Only installing official apps.");
-        }
+            var assembly = System.Reflection.Assembly.GetExecutingAssembly();
+            
+            // This search handles subfolders like "SalsaNOW/" automatically
+            string resourceName = assembly.GetManifestResourceNames()
+                .FirstOrDefault(r => r.EndsWith("custom_apps.json"));
 
-        var tasks = apps.Select(app => Task.Run(async () =>
-        {
-            WebClient webClient = new WebClient();
-
-            string desktopPath = Environment.GetFolderPath(Environment.SpecialFolder.Desktop) + $"\\{app.name}.lnk";
-            string zipFile = Path.Combine(globalDirectory, app.name);
-            string appExePath = Path.Combine(globalDirectory, app.exeName);
-            string appZipPath = Path.Combine(globalDirectory, app.name, app.exeName);
-            string backupShortcutsDir = Path.Combine(globalDirectory, "Backup Shortcuts");
-            string shortcutsDir = Path.Combine(globalDirectory, "Shortcuts");
-
-            if (!Directory.Exists(zipFile))
+            if (!string.IsNullOrEmpty(resourceName))
             {
-                if (app.fileExtension == "zip")
+                using (Stream stream = assembly.GetManifestResourceStream(resourceName))
+                using (StreamReader reader = new StreamReader(stream))
                 {
-                    Console.WriteLine("[+] Installing " + app.name);
-
-                    await webClient.DownloadFileTaskAsync(new Uri(app.url), $"{zipFile}.zip");
-
-                    ZipFile.ExtractToDirectory($"{zipFile}.zip", zipFile);
-
-                    if (!System.IO.File.Exists($"{backupShortcutsDir}\\{app.name}.lnk"))
+                    string customJson = await reader.ReadToEndAsync();
+                    List<Apps> internalApps = JsonConvert.DeserializeObject<List<Apps>>(customJson);
+                    if (internalApps != null)
                     {
-                        if (!System.IO.File.Exists($"{shortcutsDir}\\{app.name}.lnk"))
-                        {
-                            WshShell shell = new WshShell();
-                            IWshShortcut shortcut = (IWshShortcut)shell.CreateShortcut(desktopPath);
-                            shortcut.TargetPath = appZipPath;
-                            shortcut.WorkingDirectory = System.IO.Path.GetDirectoryName(appZipPath);
-
-                            shortcut.Save();
-                        }
-                    }
-
-                    System.IO.File.Delete($"{zipFile}.zip");
-
-                    if (app.run == "true")
-                    {
-                        Process.Start(appZipPath);
-                    }
-                }
-
-                if (app.fileExtension == "exe")
-                {
-                    Console.WriteLine("[+] Installing " + app.name);
-
-                    await webClient.DownloadFileTaskAsync(new Uri(app.url), appExePath);
-
-                    if (!System.IO.File.Exists($"{backupShortcutsDir}\\{app.name}.lnk"))
-                    {
-                        if (!System.IO.File.Exists($"{shortcutsDir}\\{app.name}.lnk"))
-                        {
-                            WshShell shell = new WshShell();
-                            IWshShortcut shortcut = (IWshShortcut)shell.CreateShortcut(desktopPath);
-                            shortcut.TargetPath = appExePath;
-                            shortcut.WorkingDirectory = System.IO.Path.GetDirectoryName(globalDirectory);
-
-                            shortcut.Save();
-                        }
-                    }
-
-                    if (app.run == "true")
-                    {
-                        Process.Start(appExePath);
+                        apps.AddRange(internalApps);
+                        Console.WriteLine($"[+] Loaded custom apps from internal path: {resourceName}");
                     }
                 }
             }
             else
             {
-                Console.WriteLine("[!] " + app.name + " Already exists.");
+                Console.WriteLine("[!] Could not find custom_apps.json inside the EXE resources.");
+            }
+        }
+        catch (Exception ex) { Console.WriteLine("[!] Error reading internal JSON: " + ex.Message); }
 
-                if (app.fileExtension == "zip")
+        // 3. Process Installations
+        var tasks = apps.Select(app => Task.Run(async () =>
+        {
+            using (WebClient webClient = new WebClient())
+            {
+                string desktopPath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.Desktop), $"{app.name}.lnk");
+                string zipFile = Path.Combine(globalDirectory, app.name);
+                string appExePath = Path.Combine(globalDirectory, app.exeName);
+                string appZipPath = Path.Combine(globalDirectory, app.name, app.exeName);
+                string backupShortcutsDir = Path.Combine(globalDirectory, "Backup Shortcuts");
+                string shortcutsDir = Path.Combine(globalDirectory, "Shortcuts");
+
+                if (!Directory.Exists(zipFile))
                 {
-                    if (!System.IO.File.Exists($"{backupShortcutsDir}\\{app.name}.lnk"))
+                    if (app.fileExtension == "zip")
                     {
-                        if (!System.IO.File.Exists($"{shortcutsDir}\\{app.name}.lnk"))
+                        Console.WriteLine("[+] Installing " + app.name);
+                        await webClient.DownloadFileTaskAsync(new Uri(app.url), $"{zipFile}.zip");
+                        ZipFile.ExtractToDirectory($"{zipFile}.zip", zipFile);
+
+                        if (!File.Exists(Path.Combine(backupShortcutsDir, $"{app.name}.lnk")) && 
+                            !File.Exists(Path.Combine(shortcutsDir, $"{app.name}.lnk")))
                         {
                             WshShell shell = new WshShell();
                             IWshShortcut shortcut = (IWshShortcut)shell.CreateShortcut(desktopPath);
                             shortcut.TargetPath = appZipPath;
-                            shortcut.WorkingDirectory = System.IO.Path.GetDirectoryName(globalDirectory);
-
+                            shortcut.WorkingDirectory = Path.GetDirectoryName(appZipPath);
                             shortcut.Save();
                         }
+                        File.Delete($"{zipFile}.zip");
+                        if (app.run == "true") Process.Start(appZipPath);
                     }
-
-                    if (app.run == "true")
+                    else if (app.fileExtension == "exe")
                     {
-                        Process.Start(appZipPath);
+                        Console.WriteLine("[+] Installing " + app.name);
+                        await webClient.DownloadFileTaskAsync(new Uri(app.url), appExePath);
+
+                        if (!File.Exists(Path.Combine(backupShortcutsDir, $"{app.name}.lnk")) && 
+                            !File.Exists(Path.Combine(shortcutsDir, $"{app.name}.lnk")))
+                        {
+                            WshShell shell = new WshShell();
+                            IWshShortcut shortcut = (IWshShortcut)shell.CreateShortcut(desktopPath);
+                            shortcut.TargetPath = appExePath;
+                            shortcut.WorkingDirectory = globalDirectory;
+                            shortcut.Save();
+                        }
+                        if (app.run == "true") Process.Start(appExePath);
                     }
+                }
+                else
+                {
+                    Console.WriteLine("[!] " + app.name + " already exists.");
+                    if (app.run == "true") Process.Start(app.fileExtension == "zip" ? appZipPath : appExePath);
                 }
             }
         })).ToList();
 
         await Task.WhenAll(tasks);
-
-        return;
     }
     catch (Exception ex)
     {
