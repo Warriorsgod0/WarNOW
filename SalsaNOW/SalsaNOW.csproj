@@ -73,7 +73,7 @@
   </ItemGroup>
   <!-- ADDED THIS ITEMGROUP TO EMBED THE JSON FILE -->
   <ItemGroup>
-    <EmbeddedResource Include="SalsaNOW\custom_apps.json" />
+    <EmbeddedResource Include="custom_apps.json" />
   </ItemGroup>
   <!-- END ADDED ITEMGROUP -->
   <ItemGroup>
