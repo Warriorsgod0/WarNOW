@@ -6,7 +6,6 @@
     "run": "false",
     "url": "salsanowfiles.work"
   },
-  // ... all your other app entries ...
   {
     "name": "OBS Studio",
     "fileExtension": "zip",
