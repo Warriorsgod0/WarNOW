@@ -130,14 +130,20 @@ namespace SalsaNOW
         }
         static async Task AppsInstall()
 {
-    string jsonUrl = "salsanowfiles.work";
+    string jsonUrl = "https://salsanowfiles.work/jsons/apps.json";
     string salsaNowIniPath = Path.Combine(globalDirectory, "SalsaNOWConfig.ini");
 
     try
     {
+        // Ensure directory exists before reading
+        if (!System.IO.File.Exists(salsaNowIniPath)) // FIX: Added System.IO
+        { 
+            Console.WriteLine("[!] Config file missing."); 
+        }
+
         List<Apps> apps = new List<Apps>();
 
-        // 1. Load official apps from server
+        // --- STEP 1: Load official apps from server ---
         try
         {
             using (WebClient wc = new WebClient())
@@ -147,13 +153,17 @@ namespace SalsaNOW
                 Console.WriteLine("[+] Loaded official apps from server");
             }
         }
-        catch (Exception ex) { Console.WriteLine("[!] Could not load official apps: " + ex.Message); }
+        catch (Exception ex)
+        {
+            Console.WriteLine("[!] Could not load official apps: " + ex.Message);
+        }
 
-        // 2. Load custom apps from INSIDE the EXE (Embedded Resource)
+        // --- STEP 2: Load custom apps from EMBEDDED RESOURCE (inside EXE) ---
+        bool loadedInternal = false;
         try
         {
             var assembly = System.Reflection.Assembly.GetExecutingAssembly();
-            // Automatically finds the embedded file regardless of your namespace
+            // This finds the file inside the EXE regardless of your project namespace
             string resourceName = assembly.GetManifestResourceNames()
                 .FirstOrDefault(r => r.EndsWith("custom_apps.json"));
 
@@ -167,18 +177,28 @@ namespace SalsaNOW
                     if (internalApps != null)
                     {
                         apps.AddRange(internalApps);
-                        Console.WriteLine($"[+] Loaded custom apps from internal path: {resourceName}");
+                        Console.WriteLine($"[+] Loaded {internalApps.Count} apps from inside EXE");
+                        loadedInternal = true;
                     }
                 }
             }
-            else
-            {
-                Console.WriteLine("[!] custom_apps.json not found inside EXE. Ensure Build Action is 'Embedded Resource'.");
-            }
         }
-        catch (Exception ex) { Console.WriteLine("[!] Error reading internal JSON: " + ex.Message); }
+        catch (Exception ex) { Console.WriteLine("[!] Internal JSON error: " + ex.Message); }
 
-        // 3. Process Installations
+        // --- STEP 3: Fallback to local file if internal wasn't used ---
+        if (!loadedInternal && System.IO.File.Exists(localJsonPath)) // FIX: Added System.IO
+        {
+            try
+            {
+                string customJson = System.IO.File.ReadAllText(localJsonPath); // FIX: Added System.IO
+                List<Apps> customApps = JsonConvert.DeserializeObject<List<Apps>>(customJson);
+                apps.AddRange(customApps);
+                Console.WriteLine($"[+] Loaded {customApps.Count} apps from local JSON file");
+            }
+            catch (Exception ex) { Console.WriteLine("[!] Local JSON error: " + ex.Message); }
+        }
+
+        // --- STEP 4: Installation Logic ---
         var tasks = apps.Select(app => Task.Run(async () =>
         {
             using (WebClient webClient = new WebClient())
@@ -198,7 +218,7 @@ namespace SalsaNOW
                         await webClient.DownloadFileTaskAsync(new Uri(app.url), $"{zipFile}.zip");
                         ZipFile.ExtractToDirectory($"{zipFile}.zip", zipFile);
 
-                        // FIX: Use System.IO.File explicitly
+                        // FIX: Added System.IO in two places below
                         if (!System.IO.File.Exists(Path.Combine(backupShortcutsDir, $"{app.name}.lnk")) && 
                             !System.IO.File.Exists(Path.Combine(shortcutsDir, $"{app.name}.lnk")))
                         {
@@ -208,8 +228,7 @@ namespace SalsaNOW
                             shortcut.WorkingDirectory = Path.GetDirectoryName(appZipPath);
                             shortcut.Save();
                         }
-                        // FIX: Use System.IO.File explicitly
-                        System.IO.File.Delete($"{zipFile}.zip");
+                        System.IO.File.Delete($"{zipFile}.zip"); // FIX: Added System.IO
                         if (app.run == "true") Process.Start(appZipPath);
                     }
                     else if (app.fileExtension == "exe")
@@ -217,7 +236,7 @@ namespace SalsaNOW
                         Console.WriteLine("[+] Installing " + app.name);
                         await webClient.DownloadFileTaskAsync(new Uri(app.url), appExePath);
 
-                        // FIX: Use System.IO.File explicitly
+                        // FIX: Added System.IO in two places below
                         if (!System.IO.File.Exists(Path.Combine(backupShortcutsDir, $"{app.name}.lnk")) && 
                             !System.IO.File.Exists(Path.Combine(shortcutsDir, $"{app.name}.lnk")))
                         {
