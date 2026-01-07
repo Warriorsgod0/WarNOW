@@ -21,6 +21,13 @@
     "url": "https://www.roblox.com/download/client?os=win"
   },
   {
+    "name": "apptest",
+    "fileExtension": "zip",
+    "exeName": "apptest",
+    "run": "false",
+    "url": "https://drive.google.com/drive/folders/1tY3m4ITbNwdJV5MK9Y6YN1C-4zT0bEky?usp=sharing"
+  },
+  {
     "name": "YourNewApp",
     "fileExtension": "zip",
     "exeName": "app.exe",
@@ -28,3 +35,4 @@
     "url": "https://example.com/app.zip"
   }
 ]
+
