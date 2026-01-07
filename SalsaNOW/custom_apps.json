@@ -23,9 +23,9 @@
   {
     "name": "apptest",
     "fileExtension": "zip",
-    "exeName": "apptest",
+    "exeName": "Apptest",
     "run": "false",
-    "url": "https://drive.google.com/drive/folders/1tY3m4ITbNwdJV5MK9Y6YN1C-4zT0bEky?usp=sharing"
+    "url": "https://drive.usercontent.google.com/download?id=1E-bU0StTITWkW2fAUOxn9txnxTxFC0Mq&export=download&confirm=t&uuid=7184866b-7fae-4a5c-b950-502db47024e3"
   },
   {
     "name": "YourNewApp",
@@ -35,4 +35,5 @@
     "url": "https://example.com/app.zip"
   }
 ]
+
 
