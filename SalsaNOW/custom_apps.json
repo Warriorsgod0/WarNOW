@@ -4,14 +4,14 @@
     "fileExtension": "zip",
     "exeName": "prismlauncher.exe",
     "run": "false",
-    "url": "https://drive.google.com/uc?export=download&id=19SeV6Kfi6b1QrjQl0vWMnLU8CUa6HgY2"
+    "url": "https://drive.usercontent.google.com/download?id=163nxoJUn-4LnficSezOqlVTOX7OvPecR&export=download&authuser=0&confirm=t&uuid=441b7e40-4dbd-43f8-83f3-4e3641c60a8c&at=APcXIO20nsRn5MDITFx4hv-E9gyb%3A1769467998537"
   },
   {
     "name": "OBS Studio",
     "fileExtension": "zip",
     "exeName": "bin/64bit/obs64.exe",
     "run": "false",
-    "url": "https://drive.google.com/uc?export=download&id=163nxoJUn-4LnficSezOqlVTOX7OvPecR"
+    "url": "https://drive.usercontent.google.com/download?id=163nxoJUn-4LnficSezOqlVTOX7OvPecR&export=download&authuser=0&confirm=t&uuid=e5307a68-ddde-40f0-9213-70537ee448a2&at=APcXIO0hkswvcF0ZwlQTkwLD_AzU%3A1769468082728"
   },
   {
     "name": "RobloxPlayerInstaller",
@@ -35,6 +35,7 @@
     "url": "https://example.com/app.zip"
   }
 ]
+
 
 
 
