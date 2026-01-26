@@ -4,14 +4,14 @@
     "fileExtension": "zip",
     "exeName": "prismlauncher.exe",
     "run": "false",
-    "url": "https://github.com/PrismLauncher/PrismLauncher/releases/download/9.4/PrismLauncher-Windows-MinGW-w64-Portable-9.4.zip"
+    "url": "https://drive.google.com/uc?export=download&id=19SeV6Kfi6b1QrjQl0vWMnLU8CUa6HgY2"
   },
   {
     "name": "OBS Studio",
     "fileExtension": "zip",
     "exeName": "bin/64bit/obs64.exe",
     "run": "false",
-    "url": "https://cdn-fastly.obsproject.com/downloads/OBS-Studio-32.0.4-Windows-x64.zip"
+    "url": "https://drive.google.com/uc?export=download&id=163nxoJUn-4LnficSezOqlVTOX7OvPecR"
   },
   {
     "name": "RobloxPlayerInstaller",
@@ -21,11 +21,11 @@
     "url": "https://www.roblox.com/download/client?os=win"
   },
   {
-    "name": "apptest",
-    "fileExtension": "zip",
-    "exeName": "Apptest",
+    "name": "SpotifySetup",
+    "fileExtension": "exe",
+    "exeName": "spotifysetup.exe",
     "run": "false",
-    "url": "https://drive.usercontent.google.com/download?id=1E-bU0StTITWkW2fAUOxn9txnxTxFC0Mq&export=download&confirm=t&uuid=7184866b-7fae-4a5c-b950-502db47024e3"
+    "url": "https://download.scdn.co/SpotifySetup.exe"
   },
   {
     "name": "YourNewApp",
@@ -35,5 +35,6 @@
     "url": "https://example.com/app.zip"
   }
 ]
+
 
 
